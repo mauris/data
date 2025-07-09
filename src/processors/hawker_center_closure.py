@@ -110,14 +110,14 @@ def create_calendar(closures: list, calendar_name: str):
     for entry in closures:
         try:
             start = parse_date(entry["start"])
-            end = parse_date(entry["end"]) + timedelta(days=1)  # .ics format treats end as exclusive
+            end = parse_date(entry["end"])
 
             event = Event()
-            event.name = f"[Closure] {entry['name']} ({entry['type']})"
-            event.begin = start.isoformat()
-            event.end = end.isoformat()
-            event.make_all_day()
+            event.name = f"[Closed] {entry['name']} ({entry['type']})"
+            event.begin = start
+            event.end = end
             event.description = f"{entry['name']} closed for {entry['type']}\n{entry['start']} to {entry['end']}"
+            event.make_all_day()
 
             cal.events.add(event)
         except Exception as e:
