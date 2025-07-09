@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+    <head>
+        <title>Data</title>
+    </head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    pre { background: #f4f4f4; padding: 1em; border-radius: 5px; }
+    #searchBox { margin-bottom: 1em; padding: 0.5em; width: 100%; max-width: 400px; }
+    .hidden { display: none; }
+    .main-list { list-style-type: none; padding: 0; }
+    .copy-wrapper > input {
+        padding: 0.5em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1em;
+        width: 100%;
+    }
+    .copy-wrapper {
+        position: relative;
+        display: block;
+        padding: 0.5em;
+    }
+    .copy-wrapper.copied:after {
+        content: "Copied!";
+        position: absolute;
+        top: 50%;
+        right: 1em;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.5);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 0.8em;
+        pointer-events: none;
+        z-index: 1;
+        animation: all 0.3s ease-in-out;
+    }
+    .flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .flex-1 {
+        flex: 1;
+    }
+    .flex-gap {
+        gap: 1em;
+    }
+    .file-list {
+        list-style-type: none;
+        padding: 0;
+    }
+    .file-list li {
+        margin-bottom: 2em;
+    }
+    .file-list h3 {
+        margin: 0;
+        font-size: 1.1em;
+    }
+    .file-list input {
+        font-size: 0.8em;
+    }
+  </style>
+</head>
+<body>
+    <h1>Data Index</h1>
+    <p><a href="{{repository_url}}">GitHub</a></p>
+    <div><input type="text" id="searchBox" placeholder="Search ..."></div>
+    <ul class="main-list">
+        {{#metadata}}
+        <li>
+            <h2>{{name}}</h2>
+            <p>{{description}}</p>
+            <ul id="files-{{data_category}}" class="file-list">
+                {{#files}}
+                <li>
+                    <h3>{{.}}</h3>
+                    <div class="flex flex-gap">
+                        <span class="copy-wrapper flex-1">
+                            <input class="copy-on-click" type="text" value="{{base_url}}/{{data_category}}/{{.}}" readonly />
+                        </span>
+                        <p><a href="{{base_url}}/{{data_category}}/{{.}}">Link</a></p>
+                    </div>
+                </li>
+                {{/files}}
+            </ul>
+        </li>
+        {{/metadata}}
+    </ul>
+    <script>
+        const searchBox = document.getElementById('searchBox');
+        const fileLists = document.querySelectorAll('.file-list');
+        searchBox.addEventListener('input', function(e) {
+            const filter = e.currentTarget.value.toLowerCase();
+            fileLists.forEach(list => {
+                Array.from(list.getElementsByTagName('li')).forEach(li => {
+                    const text = li.innerText.toLowerCase();
+                    li.style.display = text.includes(filter) ? '' : 'none';
+                });
+            });
+        });
+        document.querySelectorAll('.copy-on-click').forEach(input => {
+            input.addEventListener('click', function() {
+                input.select();
+                document.execCommand('copy');
+                input.parentElement.classList.add('copied');
+                setTimeout(() => { input.parentElement.classList.remove('copied'); }, 1000);
+            });
+        });
+    </script>
+</body>
+</html>

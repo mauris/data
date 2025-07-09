@@ -2,14 +2,12 @@ import requests
 from ics import Calendar, Event
 from ics.grammar.parse import ContentLine
 from datetime import datetime, timedelta
-from sklearn.cluster import DBSCAN
 from typing import List, Dict, Tuple
-import os
-import json
 import math
 
 from processors.mrt_stations import mrt_stations
 from utils.cache import cache
+from utils.data_file import DataFile
 
 dataset_id = "d_bda4baa634dd1cc7a6c7cad5f19e2d68"
 base_url = "https://data.gov.sg"
@@ -90,11 +88,24 @@ def find_nearest_center(lat: float, lon: float, centers: Dict[str, Tuple[float, 
             nearest = name
     return nearest
 
-def create_calendar(closures: list, calendar_name: str, ics_file: str = "hawker_closures.ics"):
-    cal = Calendar()    # Set calendar name (title)
+def find_nearby_centers(lat: float, lon:float, centers: Dict[str, Tuple[float, float]], radius_km: float = 1.0) -> List[str]:
+    """Find all centers within a given radius."""
+    nearby_centers = []
+    for name, (clat, clon) in centers.items():
+        dist = haversine_distance(lat, lon, clat, clon)
+        if dist <= radius_km:
+            nearby_centers.append(name)
+    return nearby_centers
+
+def create_calendar(closures: list, calendar_name: str):
+    cal = Calendar()
 
     cal.extra.append(ContentLine(name='NAME', value=calendar_name))
+    cal.extra.append(ContentLine(name='X-WR-CALNAME', value=calendar_name))
+    cal.extra.append(ContentLine(name='DESCRIPTION', value=calendar_name))
     cal.extra.append(ContentLine(name='X-WR-CALDESC', value=calendar_name))
+    cal.extra.append(ContentLine(name='TIMEZONE-ID', value="Asia/Singapore"))
+    cal.extra.append(ContentLine(name='X-WR-TIMEZONE', value="Asia/Singapore"))
 
     for entry in closures:
         try:
@@ -112,39 +123,35 @@ def create_calendar(closures: list, calendar_name: str, ics_file: str = "hawker_
         except Exception as e:
             print(f"Skipping entry due to error: {entry} | Error: {e}")
 
-    with open(ics_file, "w", encoding="utf-8") as f:
-        f.writelines(cal.serialize_iter())
-
-    print(f"Calendar saved to {ics_file}")
+    return cal
 
 def cluster_by_custom_centers(
     closures: List[Dict],
     centers: Dict[str, Tuple[float, float]],
-    out_dir: str
 ):
-    os.makedirs(out_dir, exist_ok=True)
     clustered: Dict[str, List[Dict]] = {name: [] for name in centers}
 
     for entry in closures:
         try:
             lat = float(entry['location'][0])
             lng = float(entry['location'][1])
-            region = find_nearest_center(lat, lng, centers)
-            clustered[region].append(entry)
+            regions = find_nearby_centers(lat, lng, centers)
+            for region in regions:
+                clustered[region].append(entry)
         except Exception as e:
             print(f"Skipping due to missing/invalid coordinates: {entry.get('name')} - {e}")
 
     for region, region_closures in clustered.items():
-        filename = os.path.join(out_dir, f"{region.replace(" ", "").strip().lower()}.ics")
         if not region_closures:
-            print(f"No closures found for region: {region}")
             continue
-        create_calendar(region_closures, f"Hawker Centre Closures near {region}", filename)
+        cal = create_calendar(region_closures, f"Hawker Centre Closures near {region}")
+        filename = f"{region.replace(" ", "").strip().lower()}.ics"
+        yield DataFile(filename, cal.serialize())
 
-def hawker_center_closure(out_dir: str = "output/hawker_closures"):
+def hawker_center_closure():
     closures = fetch_all_closures()
     
     stations = mrt_stations()
     centers = {station['name']: (station['location'][0], station['location'][1]) for station in stations}
 
-    cluster_by_custom_centers(closures, centers, out_dir)
+    return cluster_by_custom_centers(closures, centers)

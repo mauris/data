@@ -1,14 +1,13 @@
 import requests
-import json
 
 from utils.cache import cache
 
-url = f"https://github.com/cheeaun/sgraildata/raw/refs/heads/master/data/v1/sg-rail.geojson"
+url = "https://github.com/cheeaun/sgraildata/raw/refs/heads/master/data/v1/sg-rail.geojson"
 
 @cache
 def mrt_stations():
     global url
-    print(f"Fetching MRT stations")
+    print("Fetching MRT stations")
     
     response = requests.get(url)
     geojson = response.json()
